@@ -2,11 +2,6 @@ import numpy as np
 from PIL import Image as img
 
 
-
-
-
-
-
 def blackBox(imagePath):
     photo = img.open(imagePath)
     photo = photo.convert("L")
@@ -16,4 +11,4 @@ def blackBox(imagePath):
 
     z = y.reshape(1,y.size)
 
-    np.savetxt("data.txt",z,delimiter='00',fmt='%d')
+    np.savetxt("data.txt",z,delimiter=',',fmt='%d')
