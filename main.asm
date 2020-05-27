@@ -20,10 +20,10 @@
 		pos2 resw		1		; ^
 		pos3 resw		1		; ^
 		pos4 resw		1		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
-		pos5 resw		1		; ^
 		pos6 resw		1		; ^
 		pos7 resw		1		; ^
 		pos8 resw		1		; ^
+		pos9 resw		1		; ^
 
 		
 		
@@ -47,10 +47,10 @@
 		;pos2 db 0d		; ^
 		;pos3 db 0d		; ^
 		;pos4 db 0d		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
-		;pos5 db 0d		; ^
 		;pos6 db 0d		; ^
 		;pos7 db 0d		; ^
 		;pos8 db 0d		; ^
+		;pos9 db 0d		; ^
 
 
 	section .text
@@ -147,9 +147,91 @@ _start:
 	;----------------------trabajando-------------------;
 	; trabajando en la obtencion de datos alrededor de currentPos
 	
+	;HARD CODE POSICION 12 (DA VALOR 5) EN 	MATRIZ DE PRUEBA
+	
+_posSetter:
+	mov rax, 12d
+	mov [currentPos], rax
+	
+	; calcular valor pivot
+	mov rax, [currentPos]
+	mov [pivot], rax
+	
+	; calcular valor pos1
+	mov rax, [width]
+	push rax
+	add rax, 1
+	mov rdi, rax
+	mov rax, [currentPos]
+	sub rax, rdi
+	mov [pos1], rax
+	pop rax
 
+	; calcular valor pos2
+	mov rax, [width]
+	push rax
+	mov rdi, rax
+	mov rax, [currentPos]
+	sub rax, rdi
+	mov [pos2], rax
+	pop rax
 
+	; calcular valor pos3
+	mov rax, [width]
+	push rax
+	sub rax, 1
+	mov rdi, rax
+	mov rax, [currentPos]
+	sub rax, rdi
+	mov [pos3], rax
+	pop rax
+	
+	; calcular valor pos4
+	push rax
+	mov rax, [currentPos]
+	sub rax, 1
+	mov [pos4], rax
+	pop rax
+	; calcular valor pos6
+
+	push rax
+	mov rax, [currentPos]
+	add rax, 1
+	mov [pos6], rax
+	pop rax
+
+	; calcular valor pos7
+	mov rax, [width]
+	push rax
+	sub rax, 1
+	mov rdi, rax
+	mov rax, [currentPos]
+	add rax, rdi
+	mov [pos7], rax
+	pop rax
+
+	; calcular valor pos8
+	mov rax, [width]
+	push rax
+	mov rdi, rax
+	mov rax, [currentPos]
+	add rax, rdi
+	mov [pos8], rax
+	pop rax
+
+	; calcular valor pos9
+	mov rax, [width]
+	push rax
+	add rax, 1
+	mov rdi, rax
+	mov rax, [currentPos]
+	add rax, rdi
+	mov [pos9], rax
+	pop rax
 	;---------------------------------------------------;
+	
+	
+	
 	
 
 
