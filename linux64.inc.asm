@@ -2,6 +2,7 @@ section .bss
 	digitSpace resb 100
 	digitSpacePos resb 8
 	printSpace resb 8
+	
 %macro print 1
 	mov rax, %1
 	mov [printSpace], rax
@@ -64,11 +65,14 @@ section .bss
 
 %endmacro
 
+
+;---------------------------
 %macro exit 0
 	mov rax, SYS_EXIT
 	mov rdi, 0
 	syscall
 %endmacro
+;----------------------------
 
 STDIN_FILENO	equ	0
 STDOUT_FILENO	equ	1

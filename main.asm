@@ -3,164 +3,160 @@
 	section .bss
 
 		temp resb 5		 	 ;bloque de memoria temporal
-		sharpened resq 1000	 ;bloque de memoria reservado para crear imagen sharpened
-		osharpened resq 1000 ;bloque de memoria reservado para crear imagen over sharpened
+		sharpened 	resq 1000	 ;bloque de memoria reservado para crear imagen sharpened
+		osharpened 	resq 1000 ;bloque de memoria reservado para crear imagen over sharpened
+		lector		resb 3
+		tamano		resq 1000 ;tamano de la matriz multiplicando filas y columnas
+		finalPos	resq 1000 ;
+		currentPos	resq 1000 ;
+	
 		
+		dewidthbug 	resq  	0d		 ;existe un bug que hace que height sobre escriba el valor de width, esta es una solucion que encontra a ese problema (width en .data)
+		height		resq 	0d		 ;height conseguido del archivo de size con buffer
+
+		
+		pivot resw 		1		;memoria reservada para los datos necesarios en la convolucion para sharpening e oversharpenning
+		pos1 resw		1		; ^
+		pos2 resw		1		; ^
+		pos3 resw		1		; ^
+		pos4 resw		1		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
+		pos5 resw		1		; ^
+		pos6 resw		1		; ^
+		pos7 resw		1		; ^
+		pos8 resw		1		; ^
 
 		
 		
-		
+
+
 	section .data
-		sizefile db "images/pngMade_size.txt",0h		;guardar su file descriptor en r8
-		matrixfile db "images/pngMade_matrix.txt",0h	;guardar su file descriptor en r9
-		currentPos dq 0d			;posicion actual del pivot
+		;sizefile db "images/pngMade_size.txt",0h		;guardar su file descriptor en r12
+		;matrixfile db "images/pngMade_matrix.txt",0h	;guardar su file descriptor en r12 (el de sizefile y matrixfile no estan abiertas simultaneamente)
 		
+		sizefile db "test_size.txt",0h		;prueba
+		matrixfile db "test_matrix.txt",0h		;prueba
 		
-		fwidth 	db  0d		 ;width conseguido del archivo de size con buffer
-		fheight db 	0d		 ;height conseguido del archivo de size con buffer
-		width 	db 	0d		 ;width conseguido del archivo de size sin el buffer
-		height 	db 	0d		 ;height conseguido del archivo de size sin el buffer		
-		
-		
-		pivot db 0d		;memoria reservada para los datos necesarios en la convolucion para sharpening e oversharpenning
-		pos1 db 0d		; ^
-		pos2 db 0d		; ^
-		pos3 db 0d		; ^
-		pos4 db 0d		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
-		pos5 db 0d		; ^
-		pos6 db 0d		; ^
-		pos7 db 0d		; ^
-		pos8 db 0d		; ^
-		
+		;currentPos dq 0d			;posicion actual del pivot
+		width dq 0d		; width conseguido del archivo de size con buffer
+
+		;width 	db  	0d		 ;width conseguido del archivo de size con buffer
+		;height db 	0d		 ;height conseguido del archivo de size con buffer
+
+		;pivot db 0d		;memoria reservada para los datos necesarios en la convolucion para sharpening e oversharpenning
+		;pos1 db 0d		; ^
+		;pos2 db 0d		; ^
+		;pos3 db 0d		; ^
+		;pos4 db 0d		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
+		;pos5 db 0d		; ^
+		;pos6 db 0d		; ^
+		;pos7 db 0d		; ^
+		;pos8 db 0d		; ^
+
 
 	section .text
 		global _start
-			
-_start: 
-	;procedimiento para abrir el archivo del tamano de la matriz
+
+_start:
+	;procedimiento para abrir el archivo
 	mov rax, 2
 	mov rdx, 0 ; read parameter
 	mov rdi, sizefile
 	syscall
-	
-	;guardar file descriptor en r8
-	mov r8, rax	
-	
-	
-	;-----Problema aqui con el valor de width-----------------
-	
+
+	;guardar file descriptor en r12
+	mov r12, rax
+
+
+
 	;Encontrar valor de width con lseek
 	mov rax, 8
 	mov rdx, 0 ;al comienzo del file
-	mov rdi, r8
+	mov rdi, r12
 	mov rsi, 0
 	syscall
-	
+
 	mov rax, 0	;system read en el lugar de lseek
-	mov rdx, 5
+	mov rdx, 5 			;BUFFER!
 	mov rsi, temp
-	mov rdi, r8
+	mov rdi, r12
 	syscall
-	
+
 	mov rax, temp
 	call atoi
-	push rax
-	mov [fwidth], rax	;width con buffer
-
-	sub rax, 2
-	mov [width], rax	;width sin buffer
+	mov [width], rax	;width con buffer
 	
-	pop rax
-	;print rax
-	mov [currentPos], rax
+	mov [currentPos], rax ;declaracion de valor currentPos
+	mov [dewidthbug], rax ;esto esta aqui debido a un bug se esta logrando resolver, donde height sobreescribe el valor de width
 
 
 	;Encontrar valor de height con lseek
-
 	mov rax, 8
 	mov rdx, 0 ;al comienzo del file
-	mov rdi, r8
+	mov rdi, r12
 	mov rsi, 5 ;offset bytes
 	syscall
-	
+
 	mov rax, 0	;system read en el lugar de lseek
-	mov rdx, 5
+	mov rdx, 5	;buffer #bytes
 	mov rsi, temp
-	mov rdi, r8
+	mov rdi, r12
 	syscall
-	
+
 	mov rax, temp
 	call atoi
-	mov [fheight], rax	;height con buffer
-	sub rax, 2
-	mov [height], rax	;height sin buffer
+	mov [height], rax	;height con buffer
 	
-	;------------------------------------------
+	; realizar multiplicacion de filas y columnas y guardarlo en tamano
+	mov rax, [width]
+	mov rdi, [height]
+	mul rdi
+	mov [tamano], rax
+
+	; posicion de inicio de currentPos
+	mov rax, [currentPos]
+	add rax, 1
+	mov [currentPos], rax; se inicializa en el valor de width, por lo que bajo la logica utilizada se ocupa agregar solo 1
+	
+	; calcular posicionfinal de la matriz en finalPos
+	mov rax, [width]
+	add rax, 2
+	mov rdi, rax
+	mov rax, [tamano]
+	sub rax, rdi
+	mov [finalPos], rax
+	
 
 	;cerrar archivo de size
 	mov rax, 3
-	mov rdi, r8
-	syscall		;aqui se deja de utilizar r8
+	mov rdi, r12
+	syscall			;aqui se deja de utilizar r12
 	
-	;----------------------trabajando-------------------;
-	
+
 	;abrir archivo matrix
 	mov rax, 2
 	mov rsi, 0
 	mov rdx, 0
 	mov rdi, matrixfile
-	syscall	
+	syscall
+
+	mov r12, rax	;file descriptor de matrixfile en r12
 	
-	mov r9, rax	;file descriptor de matrixfile en r9
 	
 	
+	
+	;----------------------trabajando-------------------;
+	; trabajando en la obtencion de datos alrededor de currentPos
+	
+
+
 	;---------------------------------------------------;
-
-
-
-	push rax
-	mov rax, fwidth
-w:	print rax
 	
-	mov rax, widthi
-x:	print rax
-	
-	mov rax, fheight
-y:	print rax
-	
-	mov rax, height
-z:	print rax
-	
-	mov rax, currentPos
-v:	print rax
-
-	pop rax
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 f:	call _quit
 
 	
-; funcion atoi convierte el ascii en RAX a int
+; funcion atoi convierte el ascii en RAX a int -------------------------------------------------------------
 atoi:
     push    rbx             ; preserve ebx on the stack to be restored after function runs
     push    rcx             ; preserve ecx on the stack to be restored after function runs
@@ -193,7 +189,7 @@ atoi:
     pop     rcx             ; restore ecx from the value we pushed onto the stack at the start
     pop     rbx             ; restore ebx from the value we pushed onto the stack at the start
     ret
-;
+;------------------------------------------------------------------------------------------------------------
 	
 _quit:
 	;procedimiento para salir del programa
