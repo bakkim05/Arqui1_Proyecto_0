@@ -40,4 +40,4 @@ def widthFixerAndPrinter(matrix,filename,width,height):
 
     
 
-blackBox("images/pngMadeMini.png")
+blackBox("images/pngMade.png")
