@@ -32,9 +32,13 @@
 	section .data
 		;sizefile db "images/pngMade_size.txt",0h		;este debe ser 1/2 inputs; guardar su file descriptor en r12
 		;matrixfile db "images/pngMade_matrix.txt",0h	;este debe ser 2/2 inputs; guardar su file descriptor en r12 (el de sizefile y matrixfile no estan abiertas simultaneamente)
+		sharpenedfile db "images/sharpened.txt",0h
+		osharpenedfile db "images/oversharpened.txt",0h
 		
 		sizefile db "test_size.txt",0h		;prueba
 		matrixfile db "test_matrix.txt",0h		;prueba
+		
+		
 		
 		;currentPos dq 0d			;posicion actual del pivot
 		width dq 0d		; width conseguido del archivo de size con buffer
@@ -143,8 +147,53 @@ _start:
 	
 	
 	
+	call _posSetter
+a:	
 	
-	;----------------------trabajando-------------------;
+	
+	;---------------------trabajando-----------------------------;
+	
+	;crear archivo para sharpened image
+	xor rax, rax
+	mov rax, 85
+	mov rsi, 0777q
+	mov rdi, sharpenedfile
+	syscall
+	mov r13, rax	;guardar en 13 el file descriptor de sharpenedfile
+	
+_escribirSF:	
+	;lseek al final del arhivo sharpenedfile
+	xor rax, rax
+	mov rax, 8
+	mov rsi, 0
+	mov rdx, 2
+	mov rdi, r13
+	syscall
+	
+	;escribir en el archivo sharpened
+	xor rax, rax
+	
+	mov rdi, r14
+b:	call IntToBin8
+c:	
+	mov rdx, 1
+	mov rsi, rax
+	mov rdi, sharpenedfile
+	mov rax, 1
+	syscall
+	
+	;------------------------------------------------------------;
+	
+	
+
+	
+f:	call _quit
+
+
+
+
+
+	;-----------------esperando implementacion ------------------;
 	; trabajando en la obtencion de datos alrededor de currentPos
 	
 	;HARD CODE POSICION 12 (DA VALOR 5) EN 	MATRIZ DE PRUEBA
@@ -161,7 +210,7 @@ _posSetter:
 	;Convolucion pivot
 	xor rax, rax
 	mov rax, [currentPos]
-	mov rsi, 10				;posicion (1,1) del kernel de sharpening
+	mov rsi, 5				;posicion (1,1) del kernel de sharpening
 	call _valPos
 	call _Sharpen
 	
@@ -173,7 +222,7 @@ _posSetter:
 	xor rax, rax
 	mov rax, [currentPos]
 	sub rax, rdi			;en rax esta la posicion a la cual se ocupa convolucionar
-	mov rsi, -1				;posicion (0,0) del kernel de sharpening
+	mov rsi, 0				;posicion (0,0) del kernel de sharpening
 	call _valPos
 	call _Sharpen
 	
@@ -194,7 +243,7 @@ _posSetter:
 	mov rdi, rax
 	mov rax, [currentPos]
 	sub rax, rdi
-	mov rsi, -1				;posicion (0,2) del kernel de sharpening
+	mov rsi, 0			;posicion (0,2) del kernel de sharpening
 	call _valPos
 	call _Sharpen
 	
@@ -221,7 +270,7 @@ _posSetter:
 	mov rdi, rax
 	mov rax, [currentPos]
 	add rax, rdi
-	mov rsi, -1
+	mov rsi, 0
 	call _valPos
 	call _Sharpen
 	
@@ -241,17 +290,13 @@ _posSetter:
 	mov rdi, rax
 	mov rax, [currentPos]
 	add rax, rdi
-	mov rsi, -1
+	mov rsi, 0
 	call _valPos
 	call _Sharpen
 	
-	;----------------------------------------------------;
+	ret 
 	
-f:	call _quit
-
-
-
-
+	;----------------------------------------------------;
 
 
 
@@ -334,6 +379,27 @@ atoi:
     pop     rcx             ; restore ecx from the value we pushed onto the stack at the start
     pop     rbx             ; restore ebx from the value we pushed onto the stack at the start
     ret
+	
+	
+	
+;-----------convierte integer a binario-----------------------------------------------	
+IntToBin8:
+    mov     rcx, 7 ; longitud maxima del binario
+    mov     rdx, rdi
+    
+.NextNibble:
+    shl     sil, 1
+    setc    byte [rdi]
+    add     byte [rdi], "0" 
+    add     rdi, 1
+    sub     rcx, 1
+    jns     .NextNibble    
+
+    mov     byte [rdi], 10    
+    mov     rax, rdi
+    sub     rax, rdx
+    inc     rax
+    ret	
 ;------------------------------------------------------------------------------------------------------------
 	
 
