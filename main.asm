@@ -1,33 +1,18 @@
 %include "linux64.inc.asm"
 
 	section .bss
-
-		temp resb 5		 	 ;bloque de memoria temporal
-		sharpened 	resq 1000	 ;bloque de memoria reservado para crear imagen sharpened
-		osharpened 	resq 1000 ;bloque de memoria reservado para crear imagen over sharpened
+		sConv		resq 1		;valor de convolucion de sharpen
+		osConv		resq 1		;valor de convolucion de oversharpen
+		temp 		resb 5		;bloque de memoria temporal
+		sharpened 	resq 1000	;bloque de memoria reservado para crear imagen sharpened
+		osharpened 	resq 1000 	;bloque de memoria reservado para crear imagen over sharpened
 		lector		resb 3
-		tamano		resq 1000 ;tamano de la matriz multiplicando filas y columnas
+		tamano		resq 1000 	;tamano de la matriz multiplicando filas y columnas
 		finalPos	resq 1000 ;
 		currentPos	resq 1000 ;
 	
-		
 		dewidthbug 	resq  	0d		 ;existe un bug que hace que height sobre escriba el valor de width, esta es una solucion que encontra a ese problema (width en .data)
 		height		resq 	0d		 ;height conseguido del archivo de size con buffer
-
-		
-		pos1 resb		1		; ^
-		pos2 resb		1		; ^
-		pos3 resb		1		; ^
-		pos4 resb		1		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
-		pos6 resb		1		; ^
-		pos7 resb		1		; ^
-		pos8 resb		1		; ^
-		pos9 resb		1		; ^
-		pivot resw 		1		;memoria reservada para los datos necesarios en la convolucion para sharpening e oversharpenning
-
-		
-		
-
 
 	section .data
 		;sizefile db "images/pngMade_size.txt",0h		;este debe ser 1/2 inputs; guardar su file descriptor en r12
@@ -46,16 +31,6 @@
 		;width 	db  	0d		 ;width conseguido del archivo de size con buffer
 		;height db 	0d		 ;height conseguido del archivo de size con buffer
 
-		;pivot db 0d		;memoria reservada para los datos necesarios en la convolucion para sharpening e oversharpenning
-		;pos1 db 0d		; ^
-		;pos2 db 0d		; ^
-		;pos3 db 0d		; ^
-		;pos4 db 0d		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
-		;pos6 db 0d		; ^
-		;pos7 db 0d		; ^
-		;pos8 db 0d		; ^
-		;pos9 db 0d		; ^
-
 
 	section .text
 		global _start
@@ -63,13 +38,10 @@
 _start:
 	;procedimiento para abrir el archivo
 	mov rax, 2
-	mov rdx, 0 ; read parameter
+	mov rdx, 0 		;read parameter
 	mov rdi, sizefile
 	syscall
-
-	;guardar file descriptor en r12
-	mov r12, rax
-
+	mov r12, rax	;guardar file descriptor en r12
 
 
 	;Encontrar valor de width con lseek
@@ -146,21 +118,41 @@ _start:
 	mov r12, rax	;file descriptor de matrixfile en r12
 	
 	
-	
-	call _posSetter
-a:	
-	
-	
-	;---------------------trabajando-----------------------------;
-	
 	;crear archivo para sharpened image
 	xor rax, rax
 	mov rax, 85
 	mov rsi, 0777q
 	mov rdi, sharpenedfile
 	syscall
-	mov r13, rax	;guardar en 13 el file descriptor de sharpenedfile
+	mov r13, rax	;guardar en 13 el file descriptor de sharpenedfile (R13)
 	
+	
+	
+	;crear archivo para oversharpened image
+	xor rax, rax
+	mov rax, 85
+	mov rsi, 0777q
+	mov rdi, osharpenedfile
+	syscall
+	mov r15, rax	;guardar en 15 el file descriptor de oshaprenedfile (R15)
+	
+	
+	
+	call _posSetter
+a:	mov rax, [sConv]
+	mov rdi, [osConv]
+b:	
+
+	call _escribirSF
+
+f:	call _quit
+
+
+
+
+
+
+	;---------------------trabajando escritura sharpening-----------------------------;
 _escribirSF:	
 	;lseek al final del arhivo sharpenedfile
 	xor rax, rax
@@ -173,21 +165,70 @@ _escribirSF:
 	;escribir en el archivo sharpened
 	xor rax, rax
 	
-	mov rdi, r14
-b:	call IntToBin8
-c:	
+	mov rax, [sConv]
+	call _limitador
+	;call IntToBin8				;aqui esta el problema
+	
+	;escribir en la posicion de lseek
 	mov rdx, 1
-	mov rsi, rax
+	mov rsi, [sConv]
 	mov rdi, sharpenedfile
-	mov rax, 1
+	mov rax, 10
 	syscall
 	
-	;------------------------------------------------------------;
+	ret
+	;------------------------------------------------------------------------------;
 	
+	;--------------------trabajando escritura oversharpening-----------------------;
+_escribirOSF:
+	;lseek al final del archivo shaprenedfile
+	xor rax, rax
+	mov rax, 8
+	mov rsi, 0
+	mov rdx, 2
+	mov rdi, r15
+	syscall
 	
+	xor rax, rax
+	mov rax, [osConv]
+	
+	;escribir en la posicion de lseek
+	mov rdx, 1
+	mov rsi, [osConv]
+	mov rdi, osharpenedfile
+	mov rax, 10
+	syscall
+	
+	ret
+	;------------------------------------------------------------------------------;
 
+
+
+
+	;----------funcion para limitar numeros de 0 a 255---------------------------;
 	
-f:	call _quit
+; limita el rango del numero entre los valores de 0 a 255
+; tanto la salida como la entrada se encuentra en RAX
+_limitador:
+	cmp rax, 0
+	jl	.negativo
+	cmp rax, 255
+	jg	.sobrepositivo
+	ret ; si llega aqui significa que rax esta en el rango de 0 a 255
+	
+.negativo:
+	xor rax, rax ;esto convierte a rax en 0
+	ret
+	
+.sobrepositivo:
+	mov rax, 255 ;convertir a rax a 255
+	ret
+	
+	
+	
+	;----------------------------------------------------------------------------;
+
+
 
 
 
@@ -203,16 +244,17 @@ _posSetter:
 	mov rax, 12d
 	mov [currentPos], rax
 	
-	; calcular valor pivot
-	mov rax, [currentPos]
-	mov [pivot], rax
 	
-	;Convolucion pivot
+	;Convolucion en la posicion actual
 	xor rax, rax
 	mov rax, [currentPos]
 	mov rsi, 5				;posicion (1,1) del kernel de sharpening
+	mov r14, 9				;posicion (1,1) del kernel de over sharpening
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
 	;Convolucion pos 1
 	xor rax, rax
@@ -223,8 +265,12 @@ _posSetter:
 	mov rax, [currentPos]
 	sub rax, rdi			;en rax esta la posicion a la cual se ocupa convolucionar
 	mov rsi, 0				;posicion (0,0) del kernel de sharpening
+	mov r14, 0				;posicion (0,0) del kernel de over sharpening
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
 	;Convolucion pos 2
 	xor rax, rax
@@ -233,8 +279,12 @@ _posSetter:
 	mov rax, [currentPos]
 	sub rax, rdi
 	mov rsi, -1				;posicion (0,1) del kernel de sharpening
+	mov r14, -2				;posicion (0,1) del kernel de over sharpening
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
 	;Convolucion pos 3
 	xor rax, rax
@@ -244,24 +294,36 @@ _posSetter:
 	mov rax, [currentPos]
 	sub rax, rdi
 	mov rsi, 0			;posicion (0,2) del kernel de sharpening
+	mov r14, 0			;posicion (0,2) del kernel de over sharpening	
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
 	;Convolucion pos 4
 	xor rax, rax
 	mov rax, [currentPos]
 	sub rax, 1
-	mov rsi, -1
+	mov rsi, -1			;posicion (1,0) del kernel de sharpening
+	mov r14, -2			;posicion (1,0) del kernel de over sharpening	
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
 	;Convolucion pos 6
 	xor rax, rax
 	mov rax, [currentPos]
 	add rax, 1
-	mov rsi, -1
+	mov rsi, -1			;posicion (1,2) del kernel de sharpening
+	mov r14, -2			;posicion (1,2) del kernel de over sharpening	
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
 	;Convolucion pos 7
 	xor rax, rax
@@ -269,10 +331,14 @@ _posSetter:
 	sub rax, 1
 	mov rdi, rax
 	mov rax, [currentPos]
-	add rax, rdi
-	mov rsi, 0
+	add rax, rdi		
+	mov rsi, 0			;posicion (2,0) del kernel de sharpening
+	mov r14, 0			;posicion (2,0) del kernel de over sharpening
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
 	;Convolucion pos 8
 	xor rax, rax
@@ -280,9 +346,13 @@ _posSetter:
 	mov rdi, rax
 	mov rax, [currentPos]
 	add rax, rdi
-	mov rsi, -1
+	mov rsi, -1			;posicion (2,1) del kernel de sharpening
+	mov r14, -2			;posicion (2,1) del kernel de over sharpening	
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
 	; calcular valor pos9
 	mov rax, [width]
@@ -290,12 +360,27 @@ _posSetter:
 	mov rdi, rax
 	mov rax, [currentPos]
 	add rax, rdi
-	mov rsi, 0
+	mov rsi, 0			;posicion (2,2) del kernel de sharpening
+	mov r14, 0			;posicion (2,2) del kernel de over sharpening	
 	call _valPos
+	push rax
 	call _Sharpen
+	pop  rax
+	call _OSharpen
 	
-	ret 
 	
+	; limitar el valor de sharpen y oversharpen
+	xor rax, rax
+	mov rax, [sConv]
+	call _limitador
+	mov [sConv], rax
+	
+	xor rax, rax
+	mov rax, [osConv]
+	call _limitador
+	mov [osConv], rax
+
+	ret
 	;----------------------------------------------------;
 
 
@@ -330,13 +415,21 @@ _valPos:
 	
 	
 _Sharpen:
-	; tiene al valor en la posicion en rax y valor del kerne en rsi
+	; tiene al valor en la posicion en rax y valor del kernel en rsi
 	imul rax, rsi  ; multiplica rax y rsi
-	add rax, r14 ; suma el valor almacenado del sharpening a r14
-	mov r14, rax ; guarda el valor sumado a r14
-	xor rax, rax ; rax = 0
-	
+	add rax, [sConv] ; suma el valor almacenado del sharpening a sConv
+	mov [sConv], rax ; guarda el valor sumado a sConv
+	xor rax, rax ; rax = 0	
 	ret	
+
+	
+_OSharpen:
+	; tiene al valor de la posicion en rax y valor del kernel en r14
+	imul rax, r14
+	add rax, [osConv]
+	mov [osConv], rax
+	xor rax, rax
+	ret
 	
 
 _quit:
