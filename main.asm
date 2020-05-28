@@ -15,23 +15,23 @@
 		height		resq 	0d		 ;height conseguido del archivo de size con buffer
 
 		
+		pos1 resb		1		; ^
+		pos2 resb		1		; ^
+		pos3 resb		1		; ^
+		pos4 resb		1		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
+		pos6 resb		1		; ^
+		pos7 resb		1		; ^
+		pos8 resb		1		; ^
+		pos9 resb		1		; ^
 		pivot resw 		1		;memoria reservada para los datos necesarios en la convolucion para sharpening e oversharpenning
-		pos1 resw		1		; ^
-		pos2 resw		1		; ^
-		pos3 resw		1		; ^
-		pos4 resw		1		; ^				estos valores van desde 0 a 255 por lo que solo utiliza un byte
-		pos6 resw		1		; ^
-		pos7 resw		1		; ^
-		pos8 resw		1		; ^
-		pos9 resw		1		; ^
 
 		
 		
 
 
 	section .data
-		;sizefile db "images/pngMade_size.txt",0h		;guardar su file descriptor en r12
-		;matrixfile db "images/pngMade_matrix.txt",0h	;guardar su file descriptor en r12 (el de sizefile y matrixfile no estan abiertas simultaneamente)
+		;sizefile db "images/pngMade_size.txt",0h		;este debe ser 1/2 inputs; guardar su file descriptor en r12
+		;matrixfile db "images/pngMade_matrix.txt",0h	;este debe ser 2/2 inputs; guardar su file descriptor en r12 (el de sizefile y matrixfile no estan abiertas simultaneamente)
 		
 		sizefile db "test_size.txt",0h		;prueba
 		matrixfile db "test_matrix.txt",0h		;prueba
@@ -150,6 +150,7 @@ _start:
 	;HARD CODE POSICION 12 (DA VALOR 5) EN 	MATRIZ DE PRUEBA
 	
 _posSetter:
+
 	mov rax, 12d
 	mov [currentPos], rax
 	
@@ -157,85 +158,72 @@ _posSetter:
 	mov rax, [currentPos]
 	mov [pivot], rax
 	
-	; calcular valor pos1
-	mov rax, [width]
-	push rax
+	
+	;Convolucion paso1
+	xor rax, rax
+	mov	rax, [width]
 	add rax, 1
 	mov rdi, rax
+	xor rax, rax
 	mov rax, [currentPos]
-	sub rax, rdi
-	mov [pos1], rax
-	pop rax
-
-	; calcular valor pos2
-	mov rax, [width]
-	push rax
-	mov rdi, rax
-	mov rax, [currentPos]
-	sub rax, rdi
-	mov [pos2], rax
-	pop rax
-
-	; calcular valor pos3
-	mov rax, [width]
-	push rax
-	sub rax, 1
-	mov rdi, rax
-	mov rax, [currentPos]
-	sub rax, rdi
-	mov [pos3], rax
-	pop rax
-	
-	; calcular valor pos4
-	push rax
-	mov rax, [currentPos]
-	sub rax, 1
-	mov [pos4], rax
-	pop rax
-	; calcular valor pos6
-
-	push rax
-	mov rax, [currentPos]
-	add rax, 1
-	mov [pos6], rax
-	pop rax
-
-	; calcular valor pos7
-	mov rax, [width]
-	push rax
-	sub rax, 1
-	mov rdi, rax
-	mov rax, [currentPos]
-	add rax, rdi
-	mov [pos7], rax
-	pop rax
-
-	; calcular valor pos8
-	mov rax, [width]
-	push rax
-	mov rdi, rax
-	mov rax, [currentPos]
-	add rax, rdi
-	mov [pos8], rax
-	pop rax
-
-	; calcular valor pos9
-	mov rax, [width]
-	push rax
-	add rax, 1
-	mov rdi, rax
-	mov rax, [currentPos]
-	add rax, rdi
-	mov [pos9], rax
-	pop rax
-	;---------------------------------------------------;
+	sub rax, rdi			;en rax esta la posicion a la cual se ocupa convolucionar
+	mov rsi, -2				;posicion primer valor del kernel de sharpening
+a:	call _valPos
+b:	call _Sharpen
+c:		
 	
 	
 	
-	
-
-
 f:	call _quit
+
+
+
+
+
+_valPos:
+	;posicionar lseek en la posicion especificada en rax
+	push rsi
+	mov rdi, 3
+	mul rdi		; multiplica por la cantidad necesaria para encontrar la informacion en el archivo
+	mov rsi, rax; offset bytes
+	xor rax, rax
+	mov rdi, r12; matrix file
+	mov rdx, 0	; comenzar al inicio del documento
+	mov rax, 8	; lseek
+	syscall
+	
+	;leer valor en lseek
+	xor rax, rax
+	mov rdx, 3
+	mov rsi, lector
+	mov rdi, r12
+	mov rax, 0
+	syscall ; lector ahora tiene el valor en '' del valor de la posicion
+	
+	;ascii to integer al valor leido
+	xor rax, rax
+	mov rax, lector
+	call atoi
+	pop rsi
+	
+	ret ; rax contiene el numero, rsi contiene la cantidad a multiplicar (signed)
+	
+	
+_Sharpen:
+	; tiene al valor en la posicion en rax y valor del kerne en rsi
+	imul rax, rsi  ; multiplica rax y rsi
+	add rax, r14 ; suma el valor almacenado del sharpening a r14
+	mov r14, rax ; guarda el valor sumado a r14
+	xor rax, rax ; rax = 0
+	
+	ret
+	
+
+_quit:
+	;procedimiento para salir del programa
+	mov rax, 60
+	mov rdi, 0
+	syscall
 
 	
 ; funcion atoi convierte el ascii en RAX a int -------------------------------------------------------------
@@ -273,9 +261,5 @@ atoi:
     ret
 ;------------------------------------------------------------------------------------------------------------
 	
-_quit:
-	;procedimiento para salir del programa
-	mov rax, 60
-	mov rdi, 0
-	syscall
+
 
