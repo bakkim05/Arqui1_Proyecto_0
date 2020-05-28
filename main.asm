@@ -158,8 +158,14 @@ _posSetter:
 	mov rax, [currentPos]
 	mov [pivot], rax
 	
+	;Convolucion pivot
+	xor rax, rax
+	mov rax, [currentPos]
+	mov rsi, 10				;posicion (1,1) del kernel de sharpening
+	call _valPos
+	call _Sharpen
 	
-	;Convolucion paso1
+	;Convolucion pos 1
 	xor rax, rax
 	mov	rax, [width]
 	add rax, 1
@@ -167,14 +173,83 @@ _posSetter:
 	xor rax, rax
 	mov rax, [currentPos]
 	sub rax, rdi			;en rax esta la posicion a la cual se ocupa convolucionar
-	mov rsi, -2				;posicion primer valor del kernel de sharpening
-a:	call _valPos
-b:	call _Sharpen
-c:		
+	mov rsi, -1				;posicion (0,0) del kernel de sharpening
+	call _valPos
+	call _Sharpen
 	
+	;Convolucion pos 2
+	xor rax, rax
+	mov rax, [width]
+	mov rdi, rax
+	mov rax, [currentPos]
+	sub rax, rdi
+	mov rsi, -1				;posicion (0,1) del kernel de sharpening
+	call _valPos
+	call _Sharpen
 	
+	;Convolucion pos 3
+	xor rax, rax
+	mov rax, [width]
+	sub rax, 1
+	mov rdi, rax
+	mov rax, [currentPos]
+	sub rax, rdi
+	mov rsi, -1				;posicion (0,2) del kernel de sharpening
+	call _valPos
+	call _Sharpen
+	
+	;Convolucion pos 4
+	xor rax, rax
+	mov rax, [currentPos]
+	sub rax, 1
+	mov rsi, -1
+	call _valPos
+	call _Sharpen
+	
+	;Convolucion pos 6
+	xor rax, rax
+	mov rax, [currentPos]
+	add rax, 1
+	mov rsi, -1
+	call _valPos
+	call _Sharpen
+	
+	;Convolucion pos 7
+	xor rax, rax
+	mov rax, [width]
+	sub rax, 1
+	mov rdi, rax
+	mov rax, [currentPos]
+	add rax, rdi
+	mov rsi, -1
+	call _valPos
+	call _Sharpen
+	
+	;Convolucion pos 8
+	xor rax, rax
+	mov rax, [width]
+	mov rdi, rax
+	mov rax, [currentPos]
+	add rax, rdi
+	mov rsi, -1
+	call _valPos
+	call _Sharpen
+	
+	; calcular valor pos9
+	mov rax, [width]
+	add rax, 1
+	mov rdi, rax
+	mov rax, [currentPos]
+	add rax, rdi
+	mov rsi, -1
+	call _valPos
+	call _Sharpen
+	
+	;----------------------------------------------------;
 	
 f:	call _quit
+
+
 
 
 
@@ -216,7 +291,7 @@ _Sharpen:
 	mov r14, rax ; guarda el valor sumado a r14
 	xor rax, rax ; rax = 0
 	
-	ret
+	ret	
 	
 
 _quit:
