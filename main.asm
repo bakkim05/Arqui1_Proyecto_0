@@ -1,15 +1,13 @@
 %include "linux64.inc.asm"
-
 	section .bss
 		sConv		resq 1		;valor de convolucion de sharpen
-		osConv		resq 1		;valor de convolucion de oversharpen
+		osConv		resq 3		;valor de convolucion de oversharpen
 		temp 		resb 5		;bloque de memoria temporal
-		sharpened 	resq 1000	;bloque de memoria reservado para crear imagen sharpened
-		osharpened 	resq 1000 	;bloque de memoria reservado para crear imagen over sharpened
 		lector		resb 3
 		tamano		resq 1000 	;tamano de la matriz multiplicando filas y columnas
 		finalPos	resq 1000 ;
 		currentPos	resq 1000 ;
+		num			resb 3
 	
 		dewidthbug 	resq  	0d		 ;existe un bug que hace que height sobre escriba el valor de width, esta es una solucion que encontra a ese problema (width en .data)
 		height		resq 	0d		 ;height conseguido del archivo de size con buffer
@@ -20,17 +18,12 @@
 		sharpenedfile db "images/sharpened.txt",0h
 		osharpenedfile db "images/oversharpened.txt",0h
 		
-		sizefile db "test_size.txt",0h		;prueba
+		sizefile db "test_size.txt",0h			;prueba
 		matrixfile db "test_matrix.txt",0h		;prueba
-		
-		
-		
-		;currentPos dq 0d			;posicion actual del pivot
+
 		width dq 0d		; width conseguido del archivo de size con buffer
-
-		;width 	db  	0d		 ;width conseguido del archivo de size con buffer
-		;height db 	0d		 ;height conseguido del archivo de size con buffer
-
+		
+		hola db "hola",0h
 
 	section .text
 		global _start
@@ -127,7 +120,6 @@ _start:
 	mov r13, rax	;guardar en 13 el file descriptor de sharpenedfile (R13)
 	
 	
-	
 	;crear archivo para oversharpened image
 	xor rax, rax
 	mov rax, 85
@@ -135,13 +127,12 @@ _start:
 	mov rdi, osharpenedfile
 	syscall
 	mov r15, rax	;guardar en 15 el file descriptor de oshaprenedfile (R15)
-	
-	
+
 	
 	call _posSetter
-a:	mov rax, [sConv]
+	mov rax, [sConv]
 	mov rdi, [osConv]
-b:	
+	
 
 	call _escribirSF
 
@@ -149,10 +140,42 @@ f:	call _quit
 
 
 
-
-
-
-	;---------------------trabajando escritura sharpening-----------------------------;
+;---------------------trabajando escritura sharpening-----------------------------;
+;_escribirSF:	
+	;lseek al final del arhivo sharpenedfile
+;	xor rax, rax
+;	mov rax, 8
+;	mov rsi, 0
+;	mov rdx, 2
+;	mov rdi, r13
+;	syscall
+	
+	;escribir en el archivo sharpened
+;	xor rax, rax
+;	mov rax, [sConv]
+;a:	call _limitador				;entrada: rax, salida: rax
+;	mov byte [sConv], 0
+;b:	mov [sConv], rax
+;	;print sConv ;sera que sirve?
+;	
+;c:	mov rdi, sConv
+;d:	call IntToBin8				;entrada: rdi, salida: rax
+;e:	
+;	;escribir en la posicion de lseek
+;	mov rdx, 8
+;	mov rsi, sConv
+;	mov rdi, r13
+;	
+;	xor rax, rax
+;	mov rax, 1
+;	syscall
+;	
+;	ret
+	;------------------------------------------------------------------------------;
+	
+	
+	
+	
 _escribirSF:	
 	;lseek al final del arhivo sharpenedfile
 	xor rax, rax
@@ -164,20 +187,65 @@ _escribirSF:
 	
 	;escribir en el archivo sharpened
 	xor rax, rax
-	
 	mov rax, [sConv]
-	call _limitador
-	;call IntToBin8				;aqui esta el problema
+	call _limitador				;entrada: rax, salida: rax
+
+	mov rdi, sConv
+	mov rsi, rax
+	call itoa
 	
 	;escribir en la posicion de lseek
-	mov rdx, 1
-	mov rsi, [sConv]
-	mov rdi, sharpenedfile
-	mov rax, 10
-	syscall
+	mov rdx, rax
+	mov rsi, sConv
+	mov rdi, r13
 	
-	ret
-	;------------------------------------------------------------------------------;
+	xor rax, rax
+	mov rax, 1
+	syscall
+	ret	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	;--------------------trabajando escritura oversharpening-----------------------;
 _escribirOSF:
@@ -191,11 +259,12 @@ _escribirOSF:
 	
 	xor rax, rax
 	mov rax, [osConv]
+	call _limitador
 	
 	;escribir en la posicion de lseek
 	mov rdx, 1
 	mov rsi, [osConv]
-	mov rdi, osharpenedfile
+	mov rdi, r15
 	mov rax, 10
 	syscall
 	
@@ -205,28 +274,89 @@ _escribirOSF:
 
 
 
-	;----------funcion para limitar numeros de 0 a 255---------------------------;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;-----------implementando ciclos para moverse en la matriz-----------------------;
+
+mov rbp, [finalPos]
+mov rax, [currentPos]
+
+cmp rax, rbp
+jg _cicloFinal
+
+
+_cicloFinal:
+	;cierra archivo de shaprenedfile
+	xor rax, rax
+	mov rax, 3
+	mov rdi, sharpenedfile
+	syscall
 	
-; limita el rango del numero entre los valores de 0 a 255
-; tanto la salida como la entrada se encuentra en RAX
-_limitador:
-	cmp rax, 0
-	jl	.negativo
-	cmp rax, 255
-	jg	.sobrepositivo
-	ret ; si llega aqui significa que rax esta en el rango de 0 a 255
+	;cierra archivo de osharpenedfile
+	xor rax, rax
+	mov rax, 3
+	mov rdi, osharpenedfile
+	syscall
 	
-.negativo:
-	xor rax, rax ;esto convierte a rax en 0
-	ret
+	;cierra archivo de matrixfile
+	xor rax, rax
+	mov rax, 3
+	mov rdi, matrixfile
+	syscall
 	
-.sobrepositivo:
-	mov rax, 255 ;convertir a rax a 255
-	ret
-	
-	
-	
-	;----------------------------------------------------------------------------;
+
+;--------------------------------------------------------------------------------;
+
+
+
+
+
+
+
+
 
 
 
@@ -243,7 +373,7 @@ _posSetter:
 
 	mov rax, 12d
 	mov [currentPos], rax
-	
+	;add rax, 2
 	
 	;Convolucion en la posicion actual
 	xor rax, rax
@@ -432,6 +562,70 @@ _OSharpen:
 	ret
 	
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 _quit:
 	;procedimiento para salir del programa
 	mov rax, 60
@@ -473,27 +667,88 @@ atoi:
     pop     rbx             ; restore ebx from the value we pushed onto the stack at the start
     ret
 	
+
+; funcion para limitar numeros de 0 a 255---------------------------;
+	
+; limita el rango del numero entre los valores de 0 a 255
+; tanto la salida como la entrada se encuentra en RAX
+_limitador:
+	cmp rax, 0
+	jl	.negativo
+	cmp rax, 255
+	jg	.sobrepositivo
+	ret ; si llega aqui significa que rax esta en el rango de 0 a 255
+	
+.negativo:
+	xor rax, rax ;esto convierte a rax en 0
+	ret
+	
+.sobrepositivo:
+	mov rax, 255 ;convertir a rax a 255
+	ret
 	
 	
-;-----------convierte integer a binario-----------------------------------------------	
+	
+;-----------convierte integer a binario----------------------------------------------- ;no esta funcionando de la forma deseada
+
 IntToBin8:
     mov     rcx, 7 ; longitud maxima del binario
     mov     rdx, rdi
     
 .NextNibble:
-    shl     sil, 1
-    setc    byte [rdi]
-    add     byte [rdi], "0" 
-    add     rdi, 1
-    sub     rcx, 1
-    jns     .NextNibble    
+   shl     sil, 1
+   setc    byte [rdi]
+   add     byte [rdi], "0" 
+   add     rdi, 1
+   sub     rcx, 1
+   jns     .NextNibble    
 
     mov     byte [rdi], 10    
     mov     rax, rdi
     sub     rax, rdx
     inc     rax
     ret	
-;------------------------------------------------------------------------------------------------------------
+
+;----------------------------------------------------------------------------------;
+
+;itoa (buffer,n) -> # bytes written
+;rdi: buffer
+;rsi: n
+
+itoa:
+	mov rax, rsi
+	mov rsi, 0
+	mov r10, 10
+	
+itoa_loop:
+	;do a division
+	mov rdx, 0
+	div r10
+	add rdx, '0'
+	mov [rdi + rsi], dl
+	inc rsi
+	cmp rax, 0
+	jg itoa_loop
+	
+	;reverse the string
+	mov rdx, rdi
+	lea rcx, [rdi + rsi -1]
+	jmp itoa_reverse_test
+	
+itoa_reverse_loop:
+	mov al, [rdx]
+	mov ah, [rcx]
+	mov [rcx], al
+	mov [rdx], ah
+	inc rdx
+	dec rcx
+	
+itoa_reverse_test:
+	cmp rdx, rcx
+	jl itoa_reverse_loop
+	mov rax, rsi
+	
+	ret
 	
 
 
