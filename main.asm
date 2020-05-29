@@ -1,16 +1,16 @@
 %include "linux64.inc.asm"
 	section .bss
-		sConv		resq 1		;valor de convolucion de sharpen
-		osConv		resq 3		;valor de convolucion de oversharpen
+		sConv		resq 10		;valor de convolucion de sharpen
+		osConv		resq 30		;valor de convolucion de oversharpen
 		temp 		resb 5		;bloque de memoria temporal
 		lector		resb 3
 		tamano		resq 1000 	;tamano de la matriz multiplicando filas y columnas
 		finalPos	resq 1000 ;
 		currentPos	resq 1000 ;
-		num			resb 3
 		
-		dewidthbug 	resq  	0d		 ;existe un bug que hace que height sobre escriba el valor de width, esta es una solucion que encontra a ese problema (width en .data)
-		height		resq 	0d		 ;height conseguido del archivo de size con buffer
+		
+		;dewidthbug 	resq  	0d		 ;existe un bug que hace que height sobre escriba el valor de width, esta es una solucion que encontra a ese problema (width en .data)
+		height		resq 	100		 ;height conseguido del archivo de size con buffer
 
 	section .data
 		sizefile db "images/nature_min_size.txt",0h		;este debe ser 1/2 inputs; guardar su file descriptor en r12
@@ -23,16 +23,18 @@
 		espacio db " ",0h	; utilizado para escribir un espacio entre cada numero de la matriz convolucionada
 
 		contador db 0d		; contador para ciclos
+		
 	section .text
 		global _start
 
 _start:
+
 	;procedimiento para abrir el archivo
 	mov rax, 2
 	mov rdx, 0 		;read parameter
 	mov rdi, sizefile
 	syscall
-	mov r12, rax	;guardar file descriptor en r12
+c:	mov r12, rax	;guardar file descriptor en r12
 
 
 	;Encontrar valor de width con lseek
@@ -41,19 +43,19 @@ _start:
 	mov rdi, r12
 	mov rsi, 0
 	syscall
-
+d:
 	mov rax, 0	;system read en el lugar de lseek
 	mov rdx, 5 			;BUFFER!
 	mov rsi, temp
 	mov rdi, r12
 	syscall
-
+e:
 	mov rax, temp
 	call atoi
 	mov [width], rax	;width con buffer
 	add rax, 1			;para que comience (1,1) en vez de (0,0)
-a:	mov [currentPos], rax ;declaracion de valor currentPos
-	mov [dewidthbug], rax ;esto esta aqui debido a un bug se esta logrando resolver, donde height sobreescribe el valor de width
+	mov [currentPos], rax ;declaracion de valor currentPos
+	;mov [dewidthbug], rax ;esto esta aqui debido a un bug se esta logrando resolver, donde height sobreescribe el valor de width
 
 
 	;Encontrar valor de height con lseek
@@ -78,7 +80,7 @@ a:	mov [currentPos], rax ;declaracion de valor currentPos
 	mov rdi, [height]
 	mul rdi
 	;sub rax, 1			;indices comienzan en 0
-b:	mov [tamano], rax
+	mov [tamano], rax
 
 	; posicion de inicio de currentPos
 	mov rax, [currentPos]
@@ -127,7 +129,7 @@ b:	mov [tamano], rax
 	syscall
 	mov r15, rax	;guardar en 15 el file descriptor de oshaprenedfile (R15)
 	
-
+g:
 _cycle:					;cycle principal currentPos [?] finalPos
 	xor rax, rax
 	mov rax, [currentPos]
