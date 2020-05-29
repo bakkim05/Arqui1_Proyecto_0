@@ -5,17 +5,18 @@ import time
 
 
 def blackBox(imagePath):
-    photo = img.open(imagePath)
-    name = photo.filename
-    width,height = photo.size
+	photo = img.open(imagePath)
+	name = photo.filename
+	width,height = photo.size
 
-    photo = photo.convert("L")
-    photo.show()
+	photo = photo.convert("L")
+	photo.show()
+	
+	y = np.asarray(photo.getdata(),dtype=np.float64).reshape((photo.size[1],photo.size[0]))
+	y = np.asarray(y,dtype=np.uint8)
+	y = np.pad(y, 1, constant_values = 0)
 
-    
-    y = np.asarray(photo.getdata(),dtype=np.float64).reshape((photo.size[1],photo.size[0]))
-    y = np.asarray(y,dtype=np.uint8)
-    
+
     z = y.reshape(1,y.size)
 
     if name[-4:] == 'jpeg':
@@ -31,10 +32,9 @@ def blackBox(imagePath):
     widthFixerAndPrinter(z[0],size_file,matrix_file,width,height)
 
     #BASH
-    print("entro")
+
     os.system("./main")
     time.sleep(5)
-    print("salio")
 
     text2img(size_file)
 
