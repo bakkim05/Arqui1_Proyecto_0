@@ -13,14 +13,11 @@
 		height		resq 	0d		 ;height conseguido del archivo de size con buffer
 
 	section .data
-		sizefile db "images/pngMade_size.txt",0h		;este debe ser 1/2 inputs; guardar su file descriptor en r12
-		matrixfile db "images/pngMade_matrix.txt",0h	;este debe ser 2/2 inputs; guardar su file descriptor en r12 (el de sizefile y matrixfile no estan abiertas simultaneamente)
+		sizefile db "images/nature_min_size.txt",0h		;este debe ser 1/2 inputs; guardar su file descriptor en r12
+		matrixfile db "images/nature_min_matrix.txt",0h	;este debe ser 2/2 inputs; guardar su file descriptor en r12 (el de sizefile y matrixfile no estan abiertas simultaneamente)
 		
 		sharpenedfile db "images/sharpened.txt",0h
 		osharpenedfile db "images/oversharpened.txt",0h
-
-		;sizefile db "test_size.txt",0h			;prueba
-		;matrixfile db "test_matrix.txt",0h		;prueba
 
 		width dq 0d			; width conseguido del archivo de size con buffer
 		espacio db " ",0h	; utilizado para escribir un espacio entre cada numero de la matriz convolucionada
@@ -130,13 +127,6 @@ b:	mov [tamano], rax
 	syscall
 	mov r15, rax	;guardar en 15 el file descriptor de oshaprenedfile (R15)
 	
-	
-	
-	
-	
-	
-	
-	
 
 _cycle:					;cycle principal currentPos [?] finalPos
 	xor rax, rax
@@ -149,8 +139,7 @@ _cycle:					;cycle principal currentPos [?] finalPos
 	mov [contador], rax
 	pop rax
 	call _cycle1		;else			:	currentPos >= finalPos
-	
-	
+
 	
 _cycle1:				;cycle contador [?] width -3
 	xor rax, rax
@@ -160,14 +149,14 @@ _cycle1:				;cycle contador [?] width -3
 	xor rax, rax
 	mov rax, [contador]
 	cmp rax, rdi
-	jg _cycle3
+	jg _cycle3			;jump greater	:	contador >= width - 2
 	call _cycle2
 	
 	
 _cycle2:
-	call _posSetter
-	call _escribirSF
-	call _escribirOSF
+	call _posSetter		;
+	call _escribirSF	;
+	call _escribirOSF	;
 	
 	xor rax, rax
 	mov [sConv], rax
@@ -198,10 +187,6 @@ _cycle3:
 	mov [currentPos], rax
 	
 	call _cycle
-
-
-
-
 
 
 
