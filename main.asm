@@ -8,23 +8,24 @@
 		finalPos	resq 1000 ;
 		currentPos	resq 1000 ;
 		num			resb 3
-	
+		
 		dewidthbug 	resq  	0d		 ;existe un bug que hace que height sobre escriba el valor de width, esta es una solucion que encontra a ese problema (width en .data)
 		height		resq 	0d		 ;height conseguido del archivo de size con buffer
 
 	section .data
-		;sizefile db "images/pngMade_size.txt",0h		;este debe ser 1/2 inputs; guardar su file descriptor en r12
-		;matrixfile db "images/pngMade_matrix.txt",0h	;este debe ser 2/2 inputs; guardar su file descriptor en r12 (el de sizefile y matrixfile no estan abiertas simultaneamente)
+		sizefile db "images/pngMade_size.txt",0h		;este debe ser 1/2 inputs; guardar su file descriptor en r12
+		matrixfile db "images/pngMade_matrix.txt",0h	;este debe ser 2/2 inputs; guardar su file descriptor en r12 (el de sizefile y matrixfile no estan abiertas simultaneamente)
+		
 		sharpenedfile db "images/sharpened.txt",0h
 		osharpenedfile db "images/oversharpened.txt",0h
-		
-		sizefile db "test_size.txt",0h			;prueba
-		matrixfile db "test_matrix.txt",0h		;prueba
 
-		width dq 0d		; width conseguido del archivo de size con buffer
-		
-		hola db "hola",0h
+		;sizefile db "test_size.txt",0h			;prueba
+		;matrixfile db "test_matrix.txt",0h		;prueba
 
+		width dq 0d			; width conseguido del archivo de size con buffer
+		espacio db " ",0h	; utilizado para escribir un espacio entre cada numero de la matriz convolucionada
+
+		contador db 0d		; contador para ciclos
 	section .text
 		global _start
 
@@ -53,8 +54,8 @@ _start:
 	mov rax, temp
 	call atoi
 	mov [width], rax	;width con buffer
-	
-	mov [currentPos], rax ;declaracion de valor currentPos
+	add rax, 1			;para que comience (1,1) en vez de (0,0)
+a:	mov [currentPos], rax ;declaracion de valor currentPos
 	mov [dewidthbug], rax ;esto esta aqui debido a un bug se esta logrando resolver, donde height sobreescribe el valor de width
 
 
@@ -79,7 +80,8 @@ _start:
 	mov rax, [width]
 	mov rdi, [height]
 	mul rdi
-	mov [tamano], rax
+	;sub rax, 1			;indices comienzan en 0
+b:	mov [tamano], rax
 
 	; posicion de inicio de currentPos
 	mov rax, [currentPos]
@@ -87,12 +89,12 @@ _start:
 	mov [currentPos], rax; se inicializa en el valor de width, por lo que bajo la logica utilizada se ocupa agregar solo 1
 	
 	; calcular posicionfinal de la matriz en finalPos
-	mov rax, [width]
-	add rax, 2
-	mov rdi, rax
-	mov rax, [tamano]
-	sub rax, rdi
-	mov [finalPos], rax
+	mov rax, [width]		;.
+	add rax, 2				;.<-era un 1
+	mov rdi, rax			;.
+	mov rax, [tamano]		;.		formula = tamano - (width + 1)
+	sub rax, rdi			;.
+	mov [finalPos], rax		;.
 	
 
 	;cerrar archivo de size
@@ -127,192 +129,83 @@ _start:
 	mov rdi, osharpenedfile
 	syscall
 	mov r15, rax	;guardar en 15 el file descriptor de oshaprenedfile (R15)
-
 	
+	
+	
+	
+	
+	
+	
+	
+
+_cycle:					;cycle principal currentPos [?] finalPos
+	xor rax, rax
+	mov rax, [currentPos]
+	mov rdi, [finalPos]
+	cmp rax, rdi
+	jg _closeFile		;jump greater	:	currentPos < finalPos
+	push rax
+	xor rax, rax
+	mov [contador], rax
+	pop rax
+	call _cycle1		;else			:	currentPos >= finalPos
+	
+	
+	
+_cycle1:				;cycle contador [?] width -3
+	xor rax, rax
+	mov rax, [width]
+	sub rax, 3
+	mov rdi, rax
+	xor rax, rax
+	mov rax, [contador]
+	cmp rax, rdi
+	jg _cycle3
+	call _cycle2
+	
+	
+_cycle2:
 	call _posSetter
-	mov rax, [sConv]
-	mov rdi, [osConv]
-	
-
 	call _escribirSF
+	call _escribirOSF
+	
+	xor rax, rax
+	mov [sConv], rax
+	
+	xor rax, rax
+	mov [osConv], rax
+	
+	xor rax, rax
+	mov rax, [contador]
+	add rax, 1
+	mov [contador], rax
+	
+	xor rax, rax
+	mov rax, [currentPos]
+	add rax, 1
+	mov [currentPos], rax
+	
+	call _cycle1
+
+
+_cycle3:
+	xor rax, rax
+	mov [contador], rax
+	
+	xor rax, rax
+	mov rax, [currentPos]
+	add rax, 2
+	mov [currentPos], rax
+	
+	call _cycle
+
+
+
+
+
+
 
 f:	call _quit
-
-
-
-;---------------------trabajando escritura sharpening-----------------------------;
-;_escribirSF:	
-	;lseek al final del arhivo sharpenedfile
-;	xor rax, rax
-;	mov rax, 8
-;	mov rsi, 0
-;	mov rdx, 2
-;	mov rdi, r13
-;	syscall
-	
-	;escribir en el archivo sharpened
-;	xor rax, rax
-;	mov rax, [sConv]
-;a:	call _limitador				;entrada: rax, salida: rax
-;	mov byte [sConv], 0
-;b:	mov [sConv], rax
-;	;print sConv ;sera que sirve?
-;	
-;c:	mov rdi, sConv
-;d:	call IntToBin8				;entrada: rdi, salida: rax
-;e:	
-;	;escribir en la posicion de lseek
-;	mov rdx, 8
-;	mov rsi, sConv
-;	mov rdi, r13
-;	
-;	xor rax, rax
-;	mov rax, 1
-;	syscall
-;	
-;	ret
-	;------------------------------------------------------------------------------;
-	
-	
-	
-	
-_escribirSF:	
-	;lseek al final del arhivo sharpenedfile
-	xor rax, rax
-	mov rax, 8
-	mov rsi, 0
-	mov rdx, 2
-	mov rdi, r13
-	syscall
-	
-	;escribir en el archivo sharpened
-	xor rax, rax
-	mov rax, [sConv]
-	call _limitador				;entrada: rax, salida: rax
-
-	mov rdi, sConv
-	mov rsi, rax
-	call itoa
-	
-	;escribir en la posicion de lseek
-	mov rdx, rax
-	mov rsi, sConv
-	mov rdi, r13
-	
-	xor rax, rax
-	mov rax, 1
-	syscall
-	ret	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	;--------------------trabajando escritura oversharpening-----------------------;
-_escribirOSF:
-	;lseek al final del archivo shaprenedfile
-	xor rax, rax
-	mov rax, 8
-	mov rsi, 0
-	mov rdx, 2
-	mov rdi, r15
-	syscall
-	
-	xor rax, rax
-	mov rax, [osConv]
-	call _limitador
-	
-	;escribir en la posicion de lseek
-	mov rdx, 1
-	mov rsi, [osConv]
-	mov rdi, r15
-	mov rax, 10
-	syscall
-	
-	ret
-	;------------------------------------------------------------------------------;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -320,49 +213,29 @@ _escribirOSF:
 
 
 ;-----------implementando ciclos para moverse en la matriz-----------------------;
-
-mov rbp, [finalPos]
-mov rax, [currentPos]
-
-cmp rax, rbp
-jg _cicloFinal
-
-
-_cicloFinal:
+_closeFile:
 	;cierra archivo de shaprenedfile
 	xor rax, rax
 	mov rax, 3
 	mov rdi, sharpenedfile
 	syscall
-	
+
 	;cierra archivo de osharpenedfile
 	xor rax, rax
 	mov rax, 3
 	mov rdi, osharpenedfile
 	syscall
-	
+
 	;cierra archivo de matrixfile
 	xor rax, rax
 	mov rax, 3
 	mov rdi, matrixfile
 	syscall
 	
+	ret
+
 
 ;--------------------------------------------------------------------------------;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	;-----------------esperando implementacion ------------------;
 	; trabajando en la obtencion de datos alrededor de currentPos
@@ -370,11 +243,6 @@ _cicloFinal:
 	;HARD CODE POSICION 12 (DA VALOR 5) EN 	MATRIZ DE PRUEBA
 	
 _posSetter:
-
-	mov rax, 12d
-	mov [currentPos], rax
-	;add rax, 2
-	
 	;Convolucion en la posicion actual
 	xor rax, rax
 	mov rax, [currentPos]
@@ -385,7 +253,7 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
+
 	;Convolucion pos 1
 	xor rax, rax
 	mov	rax, [width]
@@ -401,7 +269,7 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
+
 	;Convolucion pos 2
 	xor rax, rax
 	mov rax, [width]
@@ -415,7 +283,7 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
+
 	;Convolucion pos 3
 	xor rax, rax
 	mov rax, [width]
@@ -430,7 +298,7 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
+
 	;Convolucion pos 4
 	xor rax, rax
 	mov rax, [currentPos]
@@ -442,7 +310,7 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
+
 	;Convolucion pos 6
 	xor rax, rax
 	mov rax, [currentPos]
@@ -454,7 +322,7 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
+
 	;Convolucion pos 7
 	xor rax, rax
 	mov rax, [width]
@@ -469,7 +337,7 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
+
 	;Convolucion pos 8
 	xor rax, rax
 	mov rax, [width]
@@ -483,7 +351,7 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
+
 	; calcular valor pos9
 	mov rax, [width]
 	add rax, 1
@@ -497,14 +365,14 @@ _posSetter:
 	call _Sharpen
 	pop  rax
 	call _OSharpen
-	
-	
+
+
 	; limitar el valor de sharpen y oversharpen
 	xor rax, rax
 	mov rax, [sConv]
 	call _limitador
 	mov [sConv], rax
-	
+
 	xor rax, rax
 	mov rax, [osConv]
 	call _limitador
@@ -512,7 +380,6 @@ _posSetter:
 
 	ret
 	;----------------------------------------------------;
-
 
 
 _valPos:
@@ -526,7 +393,7 @@ _valPos:
 	mov rdx, 0	; comenzar al inicio del documento
 	mov rax, 8	; lseek
 	syscall
-	
+
 	;leer valor en lseek
 	xor rax, rax
 	mov rdx, 3
@@ -534,16 +401,108 @@ _valPos:
 	mov rdi, r12
 	mov rax, 0
 	syscall ; lector ahora tiene el valor en '' del valor de la posicion
-	
+
 	;ascii to integer al valor leido
 	xor rax, rax
 	mov rax, lector
 	call atoi
 	pop rsi
-	
+
 	ret ; rax contiene el numero, rsi contiene la cantidad a multiplicar (signed)
+
+
+_escribirSF:	
+	;lseek al final del arhivo sharpenedfile
+	xor rax, rax
+	mov rax, 8
+	mov rsi, 0
+	mov rdx, 2
+	mov rdi, r13
+	syscall
+
+	;escribir en el archivo sharpened
+	xor rax, rax
+	mov rax, [sConv]
+	call _limitador				;entrada: rax, salida: rax
+
+	mov rdi, sConv
+	mov rsi, rax
+	call itoa
+
+	;escribir en la posicion de lseek
+	mov rdx, rax
+	mov rsi, sConv
+	mov rdi, r13
+
+	xor rax, rax
+	mov rax, 1
+	syscall
+
+	;lseek al final del arhivo sharpenedfile
+	xor rax, rax
+	mov rax, 8
+	mov rsi, 0
+	mov rdx, 2
+	mov rdi, r13
+	syscall
+
+	;escribir en la posicion de lseek
+	mov rdx, 1
+	mov rsi, espacio
+	mov rdi, r13
+
+	xor rax, rax
+	mov rax, 1
+	syscall
+	ret	
+
 	
+_escribirOSF:
+	;lseek al final del arhivo osharpenedfile
+	xor rax, rax
+	mov rax, 8
+	mov rsi, 0
+	mov rdx, 2
+	mov rdi, r15
+	syscall
+
+	;escribir en el archivo osharpened
+	xor rax, rax
+	mov rax, [osConv]
+	call _limitador				;entrada: rax, salida: rax
+
+	mov rdi, osConv
+	mov rsi, rax
+	call itoa
+
+	;escribir en la posicion de lseek
+	mov rdx, rax
+	mov rsi, osConv
+	mov rdi, r15
+
+	xor rax, rax
+	mov rax, 1
+	syscall
+
+	;lseek al final del arhivo sharpenedfile
+	xor rax, rax
+	mov rax, 8
+	mov rsi, 0
+	mov rdx, 2
+	mov rdi, r15
+	syscall
+
+	;escribir en la posicion de lseek
+	mov rdx, 1
+	mov rsi, espacio
+	mov rdi, r15
 	
+	xor rax, rax
+	mov rax, 1
+	syscall
+	ret			
+
+
 _Sharpen:
 	; tiene al valor en la posicion en rax y valor del kernel en rsi
 	imul rax, rsi  ; multiplica rax y rsi
@@ -552,7 +511,7 @@ _Sharpen:
 	xor rax, rax ; rax = 0	
 	ret	
 
-	
+
 _OSharpen:
 	; tiene al valor de la posicion en rax y valor del kernel en r14
 	imul rax, r14
@@ -560,70 +519,6 @@ _OSharpen:
 	mov [osConv], rax
 	xor rax, rax
 	ret
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 _quit:
@@ -632,7 +527,7 @@ _quit:
 	mov rdi, 0
 	syscall
 
-	
+
 ; funcion atoi convierte el ascii en RAX a int -------------------------------------------------------------
 atoi:
     push    rbx             ; preserve ebx on the stack to be restored after function runs
@@ -666,9 +561,8 @@ atoi:
     pop     rcx             ; restore ecx from the value we pushed onto the stack at the start
     pop     rbx             ; restore ebx from the value we pushed onto the stack at the start
     ret
-	
 
-; funcion para limitar numeros de 0 a 255---------------------------;
+; funcion para limitar numeros de 0 a 255-------------------------------;
 	
 ; limita el rango del numero entre los valores de 0 a 255
 ; tanto la salida como la entrada se encuentra en RAX
@@ -686,30 +580,9 @@ _limitador:
 .sobrepositivo:
 	mov rax, 255 ;convertir a rax a 255
 	ret
-	
-	
-	
-;-----------convierte integer a binario----------------------------------------------- ;no esta funcionando de la forma deseada
 
-IntToBin8:
-    mov     rcx, 7 ; longitud maxima del binario
-    mov     rdx, rdi
-    
-.NextNibble:
-   shl     sil, 1
-   setc    byte [rdi]
-   add     byte [rdi], "0" 
-   add     rdi, 1
-   sub     rcx, 1
-   jns     .NextNibble    
+;----------------------------------------------------------------------;
 
-    mov     byte [rdi], 10    
-    mov     rax, rdi
-    sub     rax, rdx
-    inc     rax
-    ret	
-
-;----------------------------------------------------------------------------------;
 
 ;itoa (buffer,n) -> # bytes written
 ;rdi: buffer
@@ -749,6 +622,3 @@ itoa_reverse_test:
 	mov rax, rsi
 	
 	ret
-	
-
-
