@@ -1,4 +1,3 @@
-%include "linux64.inc.asm"
 	section .bss
 		sConv		resq 10		;valor de convolucion de sharpen
 		osConv		resq 30		;valor de convolucion de oversharpen
